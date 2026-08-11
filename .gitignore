@@ -1,0 +1,13 @@
+# 원본 전사본과 그 파생물.
+# 금융감독원 공개 녹취와 AI Hub 음성에서 온 자료라 재배포가 허용되지 않는다 —
+# 받는 방법은 fetch.py, 조건은 README.md 참고.
+*.csv
+*.jsonl
+*.json
+repo/
+finetune/
+
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
