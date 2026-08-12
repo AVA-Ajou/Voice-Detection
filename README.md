@@ -49,7 +49,7 @@ python3 calibrate.py --derive     # 신호별 배점 — 다채널 갱신에 쓴
 **Colab에서** — GPU가 필요한 학습과 평가. 처음이면 [docs/COLAB.md](docs/COLAB.md)를 그대로 따라간다.
 
 ```bash
-python3 train_lora.py                      # Gemma 3 4B + QLoRA, T4에서 40~60분
+python3 train_lora.py                      # Gemma 4 E2B + QLoRA, T4에서 약 1시간 20분
 python3 evaluate.py --compare-baseline      # 온도 보정 + 신뢰도 검사
 python3 infer.py --id vishing_38            # 위험도 + 근거 한 건
 ```

@@ -18,10 +18,14 @@ import common
 HERE = Path(__file__).parent
 
 
-def cache_path(prefix):
-    """앞부분을 자른 실험은 로짓이 달라지므로 캐시를 따로 둔다."""
+def cache_path(adapter, prefix):
+    """어댑터와 자른 길이마다 캐시를 따로 둔다.
+
+    예전에는 파일 이름이 하나뿐이라 다른 어댑터를 평가하면 앞의 것을 덮어썼고, `--reuse`가
+    **엉뚱한 모델의 로짓을 조용히 되썼다.** 지표만 보고는 알아챌 방법이 없는 종류의 사고다.
+    """
     tag = "" if prefix is None else f"_p{prefix}"
-    return HERE / "finetune" / f"val_logits{tag}.json"
+    return HERE / "finetune" / f"val_logits_{Path(adapter).name}{tag}.json"
 
 
 # ────────────────────────────────────────────── 로짓 뽑기
@@ -188,9 +192,11 @@ if __name__ == "__main__":
     parser.add_argument("--reuse", action="store_true", help="저장해둔 로짓을 다시 쓴다")
     parser.add_argument("--prefix", type=int, metavar="N",
                         help="전사본 앞 N글자만 보고 판정 (실전 조건 재현)")
+    parser.add_argument("--no-save", action="store_true",
+                        help="온도를 저장하지 않는다. 맥에서 진단용으로 돌릴 때 쓴다")
     args = parser.parse_args()
 
-    cache = cache_path(args.prefix)
+    cache = cache_path(args.adapter, args.prefix)
     if args.reuse and cache.exists():
         rows = json.loads(cache.read_text())
         print(f"저장된 로짓 사용 — {cache}")
@@ -219,6 +225,12 @@ if __name__ == "__main__":
     if args.prefix:
         # 잘린 전사본으로 맞춘 온도는 실전용이 아니다. 덮어쓰면 운영 값이 오염된다.
         print(f"\n--prefix 실행이므로 온도를 저장하지 않습니다 (실험용).")
+        raise SystemExit
+    if args.no_save:
+        # 맥(bf16)과 Colab(4bit)은 로짓이 미세하게 달라 맞춰지는 온도도 다르다. 학습을
+        # 돌린 환경에서 구한 값이 운영 값이어야 하므로, 진단하러 돌릴 때는 덮어쓰지 않는다.
+        print(f"\n--no-save 이므로 온도를 저장하지 않습니다 "
+              f"(어댑터의 기존 값이 그대로 운영에 쓰입니다).")
         raise SystemExit
 
     out = Path(args.adapter) / "calibration.json"

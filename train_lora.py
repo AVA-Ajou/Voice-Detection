@@ -5,7 +5,7 @@
 같이 배우게 되고, 우리가 읽어야 할 그 한 자리의 확률이 그만큼 흐려진다.
 
     python3 train_lora.py                          # 기본값 (Colab 무료 T4)
-    python3 train_lora.py --model google/gemma-3-12b-it --epochs 2
+    python3 train_lora.py --model google/gemma-4-E4B-it --epochs 2
 """
 
 import argparse
@@ -68,15 +68,23 @@ def supported(kwargs):
 
 def main(args):
     import torch
-    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+    from peft import LoraConfig, get_peft_model
     from transformers import Trainer, TrainingArguments
 
     tokenizer, model = common.load_model(args.model, four_bit=True, attn=args.attn)
 
     yes, no = common.answer_ids(tokenizer)
     print(f"정답 토큰  {common.YES!r} → {yes}   {common.NO!r} → {no}")
+    print(f"적재 메모리  {model.get_memory_footprint() / 1e9:.2f}GB")
 
-    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+    # `prepare_model_for_kbit_training()`을 쓰지 않는다.
+    #
+    # 그 함수는 양자화되지 않은 파라미터(정규화층·임베딩)를 float32로 올려 학습을 안정시키는데,
+    # Gemma 4 는 임베딩이 커서 그 변환 하나에 8.75GB 를 요구한다 — T4 16GB 에서 터진다.
+    # 우리에게 실제로 필요한 것은 아래 두 가지뿐이고, 학습되는 파라미터는 LoRA 어댑터라
+    # 원본을 float32 로 올릴 이유가 없다.
+    model.gradient_checkpointing_enable()
+    model.enable_input_require_grads()  # 체크포인팅이 입력에 기울기를 요구한다
     model.config.use_cache = False  # 그래디언트 체크포인팅과 함께 쓸 수 없다
     model = get_peft_model(model, LoraConfig(
         r=args.rank,

@@ -17,22 +17,14 @@ Colab은 구글이 빌려주는 원격 컴퓨터다. 브라우저에서 파이�
 
 ## 0. 준비 — 한 번만 하면 되는 것
 
-### Gemma 사용 승인받기
+### Gemma 사용 승인 — 이제 필요 없다
 
-Gemma는 아무나 못 받는다. 구글이 이름과 동의를 받는다.
+예전 베이스(`google/gemma-3-4b-it`)는 승인이 필요한 저장소여서 허깅페이스 가입·라이선스 동의·
+토큰 발급을 먼저 해야 했다. 지금 쓰는 **`google/gemma-4-E2B-it`은 게이트되지 않는다** —
+토큰 없이 그냥 받아진다. 이 절은 통째로 건너뛰어도 된다.
 
-1. https://huggingface.co 가입
-2. https://huggingface.co/google/gemma-3-4b-it 접속
-3. 페이지 위쪽 **"Acknowledge license"** 버튼 클릭 → 폼 작성 후 제출
-4. 승인은 보통 즉시 떨어진다. `Gated model` 문구가 사라지면 된 것
-
-### 접근 토큰 만들기
-
-Colab에서 모델을 받으려면 열쇠가 필요하다.
-
-1. https://huggingface.co/settings/tokens
-2. **New token** → 타입 `Read` → 이름은 아무거나 → 생성
-3. `hf_xxxxx...` 로 시작하는 문자열이 나온다. **이 화면을 벗어나면 다시 못 본다.** 복사해둘 것
+> 승인이 필요한 모델로 바꾸게 되면 https://huggingface.co/settings/tokens 에서 `Read` 토큰을
+> 만들어 Colab 비밀 변수(`HF_TOKEN`)에 넣는 절차가 다시 필요해진다.
 
 ### 파일을 구글 드라이브에 올리기
 
@@ -99,14 +91,15 @@ drive.mount('/content/drive')
 
 ---
 
-## 5. 허깅페이스 로그인
+## 5. 허깅페이스 로그인 — 건너뛴다
+
+지금 베이스(`google/gemma-4-E2B-it`)는 게이트되지 않아 로그인 없이 받아진다.
+승인이 필요한 모델로 바꿨을 때만 이걸 먼저 실행한다.
 
 ```python
 from huggingface_hub import login
-login()
+login()   # 입력창에 hf_xxxxx 토큰. 화면에 안 보이는 게 정상이다
 ```
-
-입력창이 뜨면 아까 복사한 `hf_xxxxx...` 토큰을 붙여넣는다. **화면에 안 보이는 게 정상이다.**
 
 ---
 
@@ -124,24 +117,24 @@ login()
 ## 7. 학습
 
 ```python
-!python train_lora.py --out /content/drive/MyDrive/Voice-Detection/adapter
+!python train_lora.py --out /content/drive/MyDrive/Voice-Detection/adapter-gemma4
 ```
 
 `--out` 을 드라이브 경로로 주는 게 핵심이다. **세션이 끊겨도 어댑터가 살아남는다.**
 
-처음엔 모델을 받느라 5~10분쯤 조용하다(8GB). 그 다음 이런 게 흐른다.
+처음엔 모델을 받느라 10분쯤 조용하다(9.6GB). 그 다음 이런 게 흐른다.
 
 ```
-정답 토큰  '예' → 5330   '아니오' → 24071
-trainable params: 32,899,072 || all params: 4,332,... || trainable%: 0.7594
-{'loss': 0.6821, 'grad_norm': ..., 'epoch': 0.13}
-{'loss': 0.4102, ...}
+정답 토큰  '예' → 238643   '아니오' → 237534
+trainable params: 24,158,208 || all params: 5,1... || trainable%: 0.47
+{'loss': 0.5073, 'grad_norm': ..., 'epoch': 0.13}
+{'loss': 0.3367, ...}
 ```
 
 **`loss` 가 내려가면 학습이 되고 있는 것이다.** 0.69 근처에서 시작하는데, 이건 찍기(50:50)와
 같은 값이다. 0.2~0.3까지 떨어지면 잘 배운 것이고, 0.69에서 안 움직이면 뭔가 잘못된 것이다.
 
-총 40~60분. 이 탭을 닫지 말고, 가끔 화면을 건드려 유휴 종료를 피할 것.
+총 1시간 20분쯤. 이 탭을 닫지 말고, 가끔 화면을 건드려 유휴 종료를 피할 것.
 
 ### 메모리가 터지면
 
@@ -158,7 +151,7 @@ MAX_TEXT_TOKENS = 1024
 ## 8. 평가 — 이번 작업의 진짜 결과
 
 ```python
-!python evaluate.py --adapter /content/drive/MyDrive/Voice-Detection/adapter --compare-baseline
+!python evaluate.py --adapter /content/drive/MyDrive/Voice-Detection/adapter-gemma4 --compare-baseline
 ```
 
 세 가지를 본다.
@@ -200,7 +193,7 @@ ECE 0.041   (0.05 미만이면 보정 성공)
 ## 9. 실제로 한 건 돌려보기
 
 ```python
-!python infer.py --adapter /content/drive/MyDrive/Voice-Detection/adapter --id vishing_38
+!python infer.py --adapter /content/drive/MyDrive/Voice-Detection/adapter-gemma4 --id vishing_38
 ```
 
 ```
@@ -219,16 +212,17 @@ ECE 0.041   (0.05 미만이면 보정 성공)
 
 ## 10. 결과 가져오기
 
-학습이 끝나면 드라이브의 `Voice-Detection/adapter/` 안에 이것들이 생긴다.
+학습이 끝나면 드라이브의 `Voice-Detection/adapter-gemma4/` 안에 이것들이 생긴다.
 
 ```
-adapter_model.safetensors     30MB    이게 학습 결과물 전부다
+adapter_model.safetensors     92MB    이게 학습 결과물 전부다
 adapter_config.json
-calibration.json                      온도. infer.py 가 읽는다
+prompt.json                           프롬프트 계약. 서버가 이것만 보고 재구성한다
+calibration.json                      온도. infer.py 와 서버가 읽는다
 ```
 
-맥으로 내려받아 저장소에 넣으면 된다. 베이스 모델(8GB)은 받을 필요 없다 — 백엔드가
-허깅페이스에서 직접 받아 쓴다.
+맥으로 내려받아 저장소에 넣으면 된다. `checkpoint-*` 폴더는 재개용이라 빼도 된다.
+베이스 모델(9.6GB)은 받을 필요 없다 — 서버가 허깅페이스에서 직접 받아 쓴다.
 
 ---
 
@@ -236,7 +230,8 @@ calibration.json                      온도. infer.py 가 읽는다
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
-| `401 Client Error` / `Gated repo` | 라이선스 미동의 또는 토큰 문제 | 0번을 다시 |
+| `401 Client Error` / `Gated repo` | 승인이 필요한 모델로 바꿨다 | 5번에서 `login()` 실행 |
+| `CUDA out of memory` 가 모델 적재 중에 | `prepare_model_for_kbit_training` 을 되살렸다 | 그 호출을 다시 빼라 — 임베딩 fp32 승격만으로 8.75GB를 먹는다 |
 | `CUDA out of memory` | 전사본이 김 | `MAX_TEXT_TOKENS` 를 512로 |
 | 학습이 너무 느림 | GPU 미할당 | 1번 — 런타임 유형 확인 |
 | `loss` 가 0.69에서 안 내려감 | 학습률·데이터 문제 | 정답 토큰 id가 서로 다른지 로그 확인 |
