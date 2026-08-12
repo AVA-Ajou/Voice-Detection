@@ -21,7 +21,8 @@ import math
 import re
 from pathlib import Path
 
-HERE = Path(__file__).parent
+# 스크립트는 src/ 안에 있고 데이터·산출물 폴더는 저장소 루트에 있다.
+ROOT = Path(__file__).resolve().parents[1]
 
 # RiskScorer.kt 와 같은 값. 한쪽만 고치면 검증이 무의미해지므로 바꿀 때 함께 고칠 것.
 BIAS = 0.0
@@ -54,7 +55,7 @@ FEATURES = {
 }
 
 
-TRANSCRIPTS = HERE / "repo" / "Multimodal" / "data" / "transcripts"
+TRANSCRIPTS = ROOT / "repo" / "Multimodal" / "data" / "transcripts"
 
 
 def load(speaker_only=False):

@@ -49,7 +49,7 @@ ECE                       0.006           0.003      ← 절반
 ## 검증셋 213건 (피싱 106 / 정상 107)
 
 ```bash
-python3 evaluate.py --compare-baseline
+python3 src/evaluate.py --compare-baseline
 ```
 
 | | Gemma 4 E2B | (이전) Gemma 3 4B |
@@ -164,7 +164,7 @@ demo_call.m4a (25초)  →  맥 MPS에서 9.9초
 ### 어려운 정상 통화 20건 — 오탐률 0.0% → 10.0%
 
 그래서 은행·카드사·보험사가 **먼저 걸어온 정상 통화** 20건을 만들어 걸었다
-(`eval/hard_normal.jsonl`, 재현은 `python3 eval_hard_normal.py`).
+(`eval/hard_normal.jsonl`, 재현은 `python3 src/eval_hard_normal.py`).
 
 ```
   대출 심사 결과 통보     97.8   ← 오탐
@@ -190,7 +190,7 @@ demo_call.m4a (25초)  →  맥 MPS에서 9.9초
 **"검증셋이 통화 전체를 담고 있어 애매할 여지가 없다"**였다. 앞부분만 잘라 넣어 확인했다.
 
 ```bash
-python3 evaluate.py --adapter adapter-gemma4 --prefix 200
+python3 src/evaluate.py --adapter adapter-gemma4 --prefix 200
 ```
 
 ```
@@ -272,7 +272,7 @@ python3 evaluate.py --adapter adapter-gemma4 --prefix 200
 ### 결과
 
 ```bash
-python3 ../Detection-Server/stage_eval.py --llm
+python3 -m src.stage_eval --llm
 ```
 
 ```
@@ -334,7 +334,7 @@ vishing_311   정답 3 → 2     은행 창구 회피 코칭. 사람이 봐도 �
 정상 통화는 애초에 단계 판정을 거치지 않는다.
 
 **피싱의 15%는 신호가 하나도 안 잡힌다.** 이때 `stage`는 `null`이고, 없는 근거로 1단계를
-찍지 않는다 — 그것이 생성 모델이 하던 실수다. 앱은 `피싱 의심`만 띄운다.
+찍지 않는다 — 그것이 생성 모델이 하던 실수다. 앱은 `주의 필요`로 낮춰 띄운다.
 
 ## 참고 — 지어낸 문장으로 해본 것
 

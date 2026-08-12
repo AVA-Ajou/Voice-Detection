@@ -15,7 +15,8 @@ from pathlib import Path
 
 import common
 
-HERE = Path(__file__).parent
+# 스크립트는 src/ 안에 있고 데이터·산출물 폴더는 저장소 루트에 있다.
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def cache_path(adapter, prefix):
@@ -25,7 +26,7 @@ def cache_path(adapter, prefix):
     **엉뚱한 모델의 로짓을 조용히 되썼다.** 지표만 보고는 알아챌 방법이 없는 종류의 사고다.
     """
     tag = "" if prefix is None else f"_p{prefix}"
-    return HERE / "finetune" / f"val_logits_{Path(adapter).name}{tag}.json"
+    return ROOT / "finetune" / f"val_logits_{Path(adapter).name}{tag}.json"
 
 
 # ────────────────────────────────────────────── 로짓 뽑기
@@ -146,7 +147,7 @@ def old_risks():
     """정규식이 매긴 위험도를 id로 찾을 수 있게 모은다. 분할이 달라 양쪽 파일을 다 읽는다."""
     out = {}
     for name in ("train", "val"):
-        path = HERE / "finetune" / f"{name}.jsonl"
+        path = ROOT / "finetune" / f"{name}.jsonl"
         if not path.exists():
             return {}
         for line in path.open(encoding="utf-8"):
@@ -187,7 +188,7 @@ def compare(rows, t):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default=common.DEFAULT_MODEL)
-    parser.add_argument("--adapter", default=str(HERE / "adapter"))
+    parser.add_argument("--adapter", default=str(common.DEFAULT_ADAPTER))
     parser.add_argument("--compare-baseline", action="store_true")
     parser.add_argument("--reuse", action="store_true", help="저장해둔 로짓을 다시 쓴다")
     parser.add_argument("--prefix", type=int, metavar="N",

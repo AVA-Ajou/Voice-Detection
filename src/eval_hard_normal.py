@@ -19,8 +19,9 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-HERE = Path(__file__).parent
-DEFAULT_SET = HERE / "eval" / "hard_normal.jsonl"
+# 스크립트는 src/ 안에 있고 데이터·산출물 폴더는 저장소 루트에 있다.
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_SET = ROOT / "eval" / "hard_normal.jsonl"
 
 
 def analyze(url, text, timeout):

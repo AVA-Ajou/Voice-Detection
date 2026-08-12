@@ -59,17 +59,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```markdown
 Voice-Detection/
-├── fetch.py                    # 전사본 sparse clone + 앱 시뮬레이션용 표본 생성
-├── common.py                   # 프롬프트·모델 적재·계약. 학습/평가/추론이 공유
-│                               #   python3 common.py --write-contract adapter/
-├── build_binary_set.py         # 이진 학습셋 (층화 분할). 위험도를 만들지 않는다
-├── train_lora.py               # Gemma + QLoRA. 손실은 정답 토큰 한 자리에만
-├── evaluate.py                 # 온도 보정 · AUROC · 신뢰도 곡선 · 베이스라인 비교
-├── infer.py                    # 한 건 확인용 CLI (위험도 + 근거)
-│
-├── build_finetune_set.py       # [베이스라인] 정규식으로 위험도를 합성하던 옛 방식
-├── calibrate.py                # 신호별 로그 우도비 산출 → 앱의 다채널 갱신에 쓰임
-├── eval_hard_normal.py         # 어려운 정상 통화를 서버에 걸어 오탐률을 잰다
+├── src/                        # 실행 스크립트. **전부 저장소 루트에서 부른다**
+│   │                           #   python3 src/evaluate.py …
+│   ├── common.py               #   프롬프트·모델 적재·계약. 나머지가 전부 import 한다
+│   │                           #   ROOT / DEFAULT_MODEL / DEFAULT_ADAPTER 가 여기 있다
+│   ├── fetch.py                #   전사본 sparse clone + 앱 시뮬레이션용 표본 생성
+│   ├── build_binary_set.py     #   이진 학습셋 (층화 분할). 위험도를 만들지 않는다
+│   ├── train_lora.py           #   Gemma + QLoRA. 손실은 정답 토큰 한 자리에만
+│   ├── evaluate.py             #   온도 보정 · AUROC · 신뢰도 곡선 · 베이스라인 비교
+│   ├── infer.py                #   한 건 확인용 CLI (위험도 + 근거)
+│   ├── eval_hard_normal.py     #   어려운 정상 통화를 서버에 걸어 오탐률을 잰다
+│   ├── build_finetune_set.py   #   [베이스라인] 정규식으로 위험도를 합성하던 옛 방식
+│   └── calibrate.py            #   신호별 로그 우도비 산출 → 앱의 다채널 갱신에 쓰임
 │
 ├── eval/                       # 손으로 만든 평가 자료. **지표가 못 잡는 것을 잡으려고 둔다**
 │   ├── stage_gold.jsonl        #   진행 단계 정답지 36건. 규칙보다 먼저 만들었다
@@ -113,36 +114,36 @@ Voice-Detection/
 **맥에서** — 데이터 준비와 배점 산출.
 
 ```bash
-python3 fetch.py                    # 전사본 1,417건 (sparse clone, 약 82MB)
-python3 fetch.py --per-class 25 --push   # 앱 시뮬레이션 표본 생성 + adb 전송
-python3 build_binary_set.py --stats # 층화 분할 확인만
-python3 build_binary_set.py         # binary_train / binary_val 생성
-python3 calibrate.py --derive       # 신호별 로그 우도비 산출
-python3 common.py --write-contract adapter-gemma4/   # 기존 어댑터에 계약 붙이기
+python3 src/fetch.py                    # 전사본 1,417건 (sparse clone, 약 82MB)
+python3 src/fetch.py --per-class 25 --push   # 앱 시뮬레이션 표본 생성 + adb 전송
+python3 src/build_binary_set.py --stats # 층화 분할 확인만
+python3 src/build_binary_set.py         # binary_train / binary_val 생성
+python3 src/calibrate.py --derive       # 신호별 로그 우도비 산출
+python3 src/common.py --write-contract adapter-gemma4/   # 기존 어댑터에 계약 붙이기
 ```
 
 **Colab에서** — GPU가 필요한 학습·평가. 처음이면 `docs/COLAB.md`를 그대로 따라간다.
 
 ```bash
-python3 train_lora.py                        # 1 epoch, T4에서 약 1시간 20분
-python3 evaluate.py --compare-baseline       # 온도 보정 + 정규식 대비 개선폭
-python3 evaluate.py --prefix 200 --reuse     # 앞부분만 보고 판정 (실전 조건 재현)
-python3 infer.py --id vishing_38             # 한 건 확인
+python3 src/train_lora.py                        # 1 epoch, T4에서 약 1시간 20분
+python3 src/evaluate.py --compare-baseline       # 온도 보정 + 정규식 대비 개선폭
+python3 src/evaluate.py --prefix 200 --reuse     # 앞부분만 보고 판정 (실전 조건 재현)
+python3 src/infer.py --id vishing_38             # 한 건 확인
 ```
 
 **자동화된 테스트가 없다.** 검증은 `evaluate.py`가 낸 숫자로 한다. 코드를 고쳤다면
 최소한 아래 둘이 이전과 같은지 확인할 것.
 
 ```bash
-python3 build_binary_set.py --stats    # 1,417건 / 피싱 49.8% (train·val 모두)
-python3 calibrate.py                   # 피싱 706건 중 652건(92%) 커버
+python3 src/build_binary_set.py --stats    # 1,417건 / 피싱 49.8% (train·val 모두)
+python3 src/calibrate.py                   # 피싱 706건 중 652건(92%) 커버
 ```
 
 **`evaluate.py`의 오탐률 0.0%를 개선의 지표로 삼지 말 것.** 검증셋에 어려운 정상이 없어서
 나온 값이다. 실제 구멍은 따로 잰다 — 서버를 띄우고:
 
 ```bash
-python3 eval_hard_normal.py            # 어려운 정상 20건. 현재 오탐률 10.0%
+python3 src/eval_hard_normal.py            # 어려운 정상 20건. 현재 오탐률 10.0%
 ```
 
 **맥에서 `evaluate.py`를 돌릴 때는 `--no-save`를 붙일 것.** 맥(bf16)과 Colab(4bit)은 로짓이

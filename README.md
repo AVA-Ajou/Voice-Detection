@@ -41,17 +41,17 @@
 **맥에서** — 데이터 준비와 배점 산출까지.
 
 ```bash
-python3 fetch.py                  # 전사본 1,417건 받기 (sparse clone, 약 82MB)
-python3 build_binary_set.py       # 이진 학습셋 생성 (층화 분할)
-python3 calibrate.py --derive     # 신호별 배점 — 다채널 갱신에 쓴다
+python3 src/fetch.py                  # 전사본 1,417건 받기 (sparse clone, 약 82MB)
+python3 src/build_binary_set.py       # 이진 학습셋 생성 (층화 분할)
+python3 src/calibrate.py --derive     # 신호별 배점 — 다채널 갱신에 쓴다
 ```
 
 **Colab에서** — GPU가 필요한 학습과 평가. 처음이면 [docs/COLAB.md](docs/COLAB.md)를 그대로 따라간다.
 
 ```bash
-python3 train_lora.py                      # Gemma 4 E2B + QLoRA, T4에서 약 1시간 20분
-python3 evaluate.py --compare-baseline      # 온도 보정 + 신뢰도 검사
-python3 infer.py --id vishing_38            # 위험도 + 근거 한 건
+python3 src/train_lora.py                      # Gemma 4 E2B + QLoRA, T4에서 약 1시간 20분
+python3 src/evaluate.py --compare-baseline      # 온도 보정 + 신뢰도 검사
+python3 src/infer.py --id vishing_38            # 위험도 + 근거 한 건
 ```
 
 `calibrate.py`는 LLM 없이 데이터셋 전체를 정규식으로 훑어 `log(피싱 출현율 / 정상 출현율)`을

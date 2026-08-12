@@ -43,7 +43,7 @@ Voice-Detection/
     └── binary_val.jsonl
 ```
 
-> `binary_*.jsonl` 이 없으면 맥에서 먼저 `python3 build_binary_set.py` 를 돌린다.
+> `binary_*.jsonl` 이 없으면 맥에서 먼저 `python3 src/build_binary_set.py` 를 돌린다.
 > 전사본 원본(202MB)은 올릴 필요 없다. 학습셋만 있으면 된다.
 
 ---
@@ -117,7 +117,7 @@ login()   # 입력창에 hf_xxxxx 토큰. 화면에 안 보이는 게 정상이�
 ## 7. 학습
 
 ```python
-!python train_lora.py --out /content/drive/MyDrive/Voice-Detection/adapter-gemma4
+!python src/train_lora.py --out /content/drive/MyDrive/Voice-Detection/adapter-gemma4
 ```
 
 `--out` 을 드라이브 경로로 주는 게 핵심이다. **세션이 끊겨도 어댑터가 살아남는다.**
@@ -151,7 +151,7 @@ MAX_TEXT_TOKENS = 1024
 ## 8. 평가 — 이번 작업의 진짜 결과
 
 ```python
-!python evaluate.py --adapter /content/drive/MyDrive/Voice-Detection/adapter-gemma4 --compare-baseline
+!python src/evaluate.py --adapter /content/drive/MyDrive/Voice-Detection/adapter-gemma4 --compare-baseline
 ```
 
 세 가지를 본다.
@@ -193,7 +193,7 @@ ECE 0.041   (0.05 미만이면 보정 성공)
 ## 9. 실제로 한 건 돌려보기
 
 ```python
-!python infer.py --adapter /content/drive/MyDrive/Voice-Detection/adapter-gemma4 --id vishing_38
+!python src/infer.py --adapter /content/drive/MyDrive/Voice-Detection/adapter-gemma4 --id vishing_38
 ```
 
 ```

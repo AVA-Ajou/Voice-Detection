@@ -9,7 +9,8 @@ import json
 import re
 from pathlib import Path
 
-HERE = Path(__file__).parent
+# 스크립트는 src/ 안에 있고 데이터·산출물 폴더는 저장소 루트에 있다.
+ROOT = Path(__file__).resolve().parents[1]
 
 # Colab 무료 T4(16GB) 기준. 4bit 양자화해서 올린다.
 #
@@ -20,6 +21,11 @@ HERE = Path(__file__).parent
 # E2B 는 실효 2B 라 이전 4B 보다 작은데, 재측정 결과 판정 성능은 오히려 나았다
 # (docs/RESULTS.md). 되돌릴 일에 대비해 이전 어댑터는 지우지 않는다.
 DEFAULT_MODEL = "google/gemma-4-E2B-it"
+
+# 기본 어댑터. **DEFAULT_MODEL 과 짝이 맞아야 한다** — 예전 `adapter/` 는 Gemma 3 로
+# 학습한 것이라 여기에 붙이면 에러 없이 확률만 틀어진다. 되돌릴 때는 두 값을 함께
+# 바꾸고, 알려진 값으로 대조할 것(docs/RESULTS.md).
+DEFAULT_ADAPTER = ROOT / "adapter-gemma4"
 
 # 전사본을 토큰 몇 개까지 볼 것인가. T4에서 배치 1 + 그래디언트 체크포인팅 기준 한계다.
 # 상위 10%가 2,300자를 넘지만 앞부분만 남긴다 — 실전에서는 통화가 진행되는 도중,
@@ -94,7 +100,7 @@ def build_prompt(tokenizer, text):
 
 
 def load_rows(name):
-    path = HERE / "finetune" / f"{name}.jsonl"
+    path = ROOT / "finetune" / f"{name}.jsonl"
     if not path.exists():
         raise SystemExit(f"{path} 가 없습니다. 먼저 build_binary_set.py 를 실행하세요.")
     return [json.loads(line) for line in path.open(encoding="utf-8")]

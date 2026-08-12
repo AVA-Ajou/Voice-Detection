@@ -26,9 +26,10 @@ import random
 import re
 from pathlib import Path
 
-HERE = Path(__file__).parent
-TRANSCRIPTS = HERE / "repo" / "Multimodal" / "data" / "transcripts"
-OUT_DIR = HERE / "finetune"
+# 스크립트는 src/ 안에 있고 데이터·산출물 폴더는 저장소 루트에 있다.
+ROOT = Path(__file__).resolve().parents[1]
+TRANSCRIPTS = ROOT / "repo" / "Multimodal" / "data" / "transcripts"
+OUT_DIR = ROOT / "finetune"
 
 # 위험도를 만들 때 쓰는 신호와 무게. calibrate.py 에서 실측한 값을 그대로 가져온다.
 # (그룹, 무게, 패턴, 사람이 읽을 이름)

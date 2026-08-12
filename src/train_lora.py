@@ -13,7 +13,8 @@ from pathlib import Path
 
 import common
 
-HERE = Path(__file__).parent
+# 스크립트는 src/ 안에 있고 데이터·산출물 폴더는 저장소 루트에 있다.
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class Dataset:
@@ -150,7 +151,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default=common.DEFAULT_MODEL)
-    parser.add_argument("--out", default=str(HERE / "adapter"))
+    parser.add_argument("--out", default=str(common.DEFAULT_ADAPTER))
     # 1,200건 이진 분류에 LoRA면 한 바퀴로 대체로 수렴한다. 검증 손실을 보고 늘릴 것.
     parser.add_argument("--epochs", type=float, default=1)
     parser.add_argument("--batch", type=int, default=2, help="메모리가 터지면 1로")

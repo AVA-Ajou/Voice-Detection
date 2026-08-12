@@ -16,7 +16,8 @@ from pathlib import Path
 
 import common
 
-HERE = Path(__file__).parent
+# 스크립트는 src/ 안에 있고 데이터·산출물 폴더는 저장소 루트에 있다.
+ROOT = Path(__file__).resolve().parents[1]
 
 # 판정 결과에 따라 묻는 말이 갈려야 한다. "피싱으로 판정되었다"를 무조건 전제로 깔면
 # 정상 통화에도 모델이 억지 근거를 만든다 — 배송 지연 사과를 사기 수법으로 둔갑시키는 것을
@@ -82,7 +83,7 @@ def temperature_of(adapter):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default=common.DEFAULT_MODEL)
-    parser.add_argument("--adapter", default=str(HERE / "adapter"))
+    parser.add_argument("--adapter", default=str(common.DEFAULT_ADAPTER))
     parser.add_argument("--text", help="전사본 직접 입력")
     parser.add_argument("--id", help="데이터셋에서 id로 찾아 쓴다 (예: vishing_38)")
     parser.add_argument("--no-reason", action="store_true", help="위험도만 계산")

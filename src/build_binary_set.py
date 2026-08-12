@@ -14,9 +14,10 @@ import json
 import random
 from pathlib import Path
 
-HERE = Path(__file__).parent
-TRANSCRIPTS = HERE / "repo" / "Multimodal" / "data" / "transcripts"
-OUT_DIR = HERE / "finetune"
+# 스크립트는 src/ 안에 있고 데이터·산출물 폴더는 저장소 루트에 있다.
+ROOT = Path(__file__).resolve().parents[1]
+TRANSCRIPTS = ROOT / "repo" / "Multimodal" / "data" / "transcripts"
+OUT_DIR = ROOT / "finetune"
 
 SEED = 20260811
 

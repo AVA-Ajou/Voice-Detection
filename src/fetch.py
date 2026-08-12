@@ -19,9 +19,10 @@ from pathlib import Path
 
 ORIGIN = "https://github.com/selfcontrol7/Korean_Voice_Phishing_Detection.git"
 
-HERE = Path(__file__).parent
-SAMPLE = HERE / "korccvi_sample.json"
-REPO = HERE / "repo"
+# 스크립트는 src/ 안에 있고 데이터·산출물 폴더는 저장소 루트에 있다.
+ROOT = Path(__file__).resolve().parents[1]
+SAMPLE = ROOT / "korccvi_sample.json"
+REPO = ROOT / "repo"
 TRANSCRIPTS = REPO / "Multimodal" / "data" / "transcripts"
 
 # 기기 내 경로. 앱이 내부 저장소를 먼저 보고 없으면 외부를 본다
@@ -45,7 +46,7 @@ def clone() -> None:
     전혀 줄지 않는다.
     """
     if TRANSCRIPTS.is_dir():
-        print(f"이미 있음: {TRANSCRIPTS.relative_to(HERE)}")
+        print(f"이미 있음: {TRANSCRIPTS.relative_to(ROOT)}")
         return
     print("전사본 받는 중 (약 82MB)")
     subprocess.run(["git", "clone", "--filter=blob:none", "--sparse", ORIGIN, str(REPO)],
@@ -53,7 +54,7 @@ def clone() -> None:
     subprocess.run(["git", "-C", str(REPO), "sparse-checkout", "set", "--no-cone",
                     "/Multimodal/data/transcripts/**"], check=True)
     n = len(list(TRANSCRIPTS.glob("*/*.json")))
-    print(f"전사본 {n}건 → {TRANSCRIPTS.relative_to(HERE)}")
+    print(f"전사본 {n}건 → {TRANSCRIPTS.relative_to(ROOT)}")
 
 
 def build_sample(per_class: int) -> None:
