@@ -1,0 +1,6 @@
+# 학습·평가용. Colab에서 `pip install -r requirements-train.txt` 로 한 번에 깐다.
+# 로컬 맥에서는 build_binary_set.py 만 돌리면 되므로 이 파일이 필요 없다.
+transformers>=4.50
+peft>=0.14
+bitsandbytes>=0.45
+accelerate>=1.0

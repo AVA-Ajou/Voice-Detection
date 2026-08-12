@@ -16,11 +16,9 @@ LLM 추출기는 출현율이 다르다. 이 스크립트가 답하는 것은 "�
 """
 
 import argparse
-import csv
 import json
 import math
 import re
-import sys
 from pathlib import Path
 
 HERE = Path(__file__).parent
@@ -62,32 +60,30 @@ TRANSCRIPTS = HERE / "repo" / "Multimodal" / "data" / "transcripts"
 def load(speaker_only=False):
     """전사본을 (텍스트, 피싱여부)로 읽는다.
 
-    통화별 JSON(1,417건)이 있으면 그쪽을 쓴다. v1.3 CSV(730건)보다 피싱이 5.8배 많고
-    화자 분리가 붙어 있어서, 사용자 본인의 되묻는 말을 걷어낼 수 있다.
+    통화별 JSON 1,417건을 쓴다. 같은 저장소의 v1.3 CSV(730건)도 있지만 피싱이 121건뿐이고
+    화자 분리가 없어서 쓰지 않는다.
 
     [speaker_only]가 참이면 **가장 많이 말한 화자**의 발화만 남긴다. 화자 라벨에는 역할이
     없으므로 "사기범이 더 많이 말한다"는 경험칙으로 대신한다 — 설득하는 쪽이 말을 길게
     하기 때문이고, 실제로 피싱 통화의 화자 수 분포도 그 가정과 어긋나지 않는다.
     """
-    if TRANSCRIPTS.is_dir():
-        out = []
-        for kind, is_phishing in (("vishing", True), ("non_vishing", False)):
-            for path in sorted((TRANSCRIPTS / kind).glob("*.json")):
-                d = json.loads(path.read_text(encoding="utf-8"))
-                if not speaker_only:
-                    out.append((d.get("text", ""), is_phishing))
-                    continue
-                by_speaker = {}
-                for s in d.get("segments", []):
-                    name = (s.get("speaker") or {}).get("name") or "?"
-                    by_speaker[name] = by_speaker.get(name, "") + " " + s.get("text", "")
-                dominant = max(by_speaker.values(), key=len) if by_speaker else d.get("text", "")
-                out.append((dominant, is_phishing))
-        return out
+    if not TRANSCRIPTS.is_dir():
+        raise SystemExit(f"{TRANSCRIPTS} 가 없습니다. 먼저 python3 fetch.py 를 실행하세요.")
 
-    csv.field_size_limit(sys.maxsize)
-    rows = list(csv.DictReader((HERE / "korccvi_v1.3.csv").open(encoding="utf-8")))
-    return [(r["Transcript"], r["Label"] == "1") for r in rows]
+    out = []
+    for kind, is_phishing in (("vishing", True), ("non_vishing", False)):
+        for path in sorted((TRANSCRIPTS / kind).glob("*.json")):
+            d = json.loads(path.read_text(encoding="utf-8"))
+            if not speaker_only:
+                out.append((d.get("text", ""), is_phishing))
+                continue
+            by_speaker = {}
+            for s in d.get("segments", []):
+                name = (s.get("speaker") or {}).get("name") or "?"
+                by_speaker[name] = by_speaker.get(name, "") + " " + s.get("text", "")
+            dominant = max(by_speaker.values(), key=len) if by_speaker else d.get("text", "")
+            out.append((dominant, is_phishing))
+    return out
 
 
 def extract(text):
