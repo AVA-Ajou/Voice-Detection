@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Voice-Detection** — 통화 전사본으로 보이스피싱을 판정하는 모델의 **데이터·학습·평가**.
 
 산출물은 LoRA 어댑터 하나(92MB)다. 추론은 이 저장소가 하지 않는다 — `../Detection-Server`가
-어댑터를 받아 서빙하고, 안드로이드 앱(`../demo`)이 그 서버를 부른다. 학습은 가끔 돌리는
+어댑터를 받아 서빙하고, 안드로이드 앱(`../AVA-app`)이 그 서버를 부른다. 학습은 가끔 돌리는
 오프라인 배치이고 서버는 항상 떠 있어야 해서 주기가 다르므로 분리했다.
 
 ```
@@ -70,7 +70,7 @@ Voice-Detection/
 │   ├── infer.py                #   한 건 확인용 CLI (위험도 + 근거)
 │   ├── eval_hard_normal.py     #   어려운 정상 통화를 서버에 걸어 오탐률을 잰다
 │   ├── build_finetune_set.py   #   [베이스라인] 정규식으로 위험도를 합성하던 옛 방식
-│   └── calibrate.py            #   신호별 로그 우도비 산출 → 앱의 다채널 갱신에 쓰임
+│   └── calibrate.py            #   신호별 로그 우도비 산출 → 다채널 융합용(아직 미구현)
 │
 ├── eval/                       # 손으로 만든 평가 자료. **지표가 못 잡는 것을 잡으려고 둔다**
 │   ├── stage_gold.jsonl        #   진행 단계 정답지 36건. 규칙보다 먼저 만들었다

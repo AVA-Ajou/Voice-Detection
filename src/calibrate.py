@@ -24,7 +24,9 @@ from pathlib import Path
 # 스크립트는 src/ 안에 있고 데이터·산출물 폴더는 저장소 루트에 있다.
 ROOT = Path(__file__).resolve().parents[1]
 
-# RiskScorer.kt 와 같은 값. 한쪽만 고치면 검증이 무의미해지므로 바꿀 때 함께 고칠 것.
+# 앱의 `RiskScorer.kt` 와 같은 값이었다. **그 파일은 지금 앱에 없다** — 위험도를 앱이
+# 계산하던 시절의 코드이고, 서버가 로짓에서 읽어주게 되면서 사라졌다. 여기 남은 배점은
+# 다채널 로그오즈 융합(`docs/METHOD.md` 6절)의 재료이지 앱과 짝을 맞출 대상이 아니다.
 BIAS = 0.0
 GROUP_CAPS = {"IMPERSONATION": 3.0, "PRETEXT": 4.0, "DEMAND": 6.0, "CONTROL": 3.0}
 
@@ -92,7 +94,7 @@ def extract(text):
 
 
 def score(fired, weights):
-    """RiskScorer.scoreContent 와 같은 규칙 — 그룹별 상한을 걸고 합산한다."""
+    """그룹별 상한을 걸고 합산한다 — 한 그룹의 신호가 여러 개 켜져도 무한정 오르지 않게."""
     total = 0.0
     for group, cap in GROUP_CAPS.items():
         s = sum(weights[f] for f in fired if FEATURES[f][0] == group)
