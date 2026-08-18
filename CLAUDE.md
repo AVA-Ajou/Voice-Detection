@@ -81,12 +81,16 @@ Voice-Detection/
 │   ├── COLAB.md                # Colab 학습 절차 (처음 쓰는 사람용)
 │   └── RESULTS.md              # 측정된 성능과 그 한계
 │
-├── adapter-gemma4/             # 학습 산출물 (gitignore, prompt/calibration만 예외)
+├── adapter-gemma4/             # 학습 산출물. **커밋한다** — clone 하면 바로 추론된다
+│   │                           #   다시 학습해도 같은 가중치가 안 나오고(4bit·GPU 비결정성)
+│   │                           #   온도는 이 가중치에 맞춰 구한 값이라 짝을 떼면 안 된다
 │   ├── adapter_model.safetensors    92MB
 │   ├── prompt.json                 지시문·입력 상한·정답 후보  ← 계약
-│   └── calibration.json            온도 3.136
+│   ├── calibration.json            온도 3.136
+│   └── checkpoint-151/             중간 상태. 이것만 gitignore
 │
-├── adapter/                    # 이전 산출물 (Gemma 3 4B, 125MB, 온도 1.370)
+├── adapter/                    # 이전 산출물 (Gemma 3 4B, 온도 1.370). 계약 두 개만 커밋 —
+│                               #   가중치 125MB 가 GitHub 파일 상한을 넘는다
 │                               #   되돌릴 때를 위해 남겨둔다. 서버에는 하나만 넣을 것 —
 │                               #   베이스가 다른 어댑터를 섞으면 확률만 조용히 틀어진다
 │

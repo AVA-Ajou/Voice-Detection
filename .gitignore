@@ -16,15 +16,28 @@ colab_upload/
 !eval/stage_gold.jsonl
 !eval/hard_normal.jsonl
 
-# 학습 산출물. 체크포인트는 재현 가능하므로 커밋하지 않는다.
-# 다만 adapter/calibration.json(온도)은 숫자 하나뿐이고 추론에 필요하니 예외로 둔다.
+# 학습 산출물. 체크포인트는 중간 상태일 뿐이라 커밋하지 않는다.
 adapter/*
 adapter-gemma4/*
 checkpoint-*/
-!adapter/calibration.json
-!adapter/prompt.json
+
+# 현역 어댑터(gemma4)는 통째로 커밋한다. "재현 가능하니 빼자"가 여기서는 성립하지 않는다 —
+# 4bit 양자화와 GPU 커널의 비결정성 때문에 다시 학습해도 같은 가중치가 나오지 않고,
+# calibration.json 의 온도는 이 가중치의 로짓에 맞춰 구한 값이라 짝이 어긋나면
+# 에러 없이 확률만 조용히 틀어진다. 받는 사람이 재현하는 게 아니라 이걸 그대로 써야 한다.
+# 토크나이저를 함께 두는 것은 어댑터 폴더를 자기완결로 만들기 위해서다(계약 파일).
+!adapter-gemma4/adapter_model.safetensors
+!adapter-gemma4/adapter_config.json
+!adapter-gemma4/tokenizer.json
+!adapter-gemma4/tokenizer_config.json
+!adapter-gemma4/chat_template.jinja
 !adapter-gemma4/calibration.json
 !adapter-gemma4/prompt.json
+!adapter-gemma4/README.md
+
+# 이전 산출물(Gemma 3)은 계약 두 개만. 가중치가 125MiB 라 GitHub 파일 상한을 넘는다.
+!adapter/calibration.json
+!adapter/prompt.json
 
 __pycache__/
 *.pyc
