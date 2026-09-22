@@ -37,8 +37,27 @@ YES, NO = "예", "아니오"
 
 INSTRUCTION = "위 통화가 보이스피싱인지 판단하라. 예 또는 아니오로만 답하라."
 
+# 태스크별 계약. 어댑터 폴더 이름이 곧 서버의 `task` 값이다(`adapters/voice`, `adapters/sms`).
+#
+# 문자 지시문은 서버에 이미 배포된 `adapters/sms/prompt.json` 과 **글자 단위로 같아야 한다** —
+# 그 어댑터로 학습된 로짓을 다시 재는 일(온도 보정)이 이 파일을 거치기 때문이다.
+# 문자 상한이 512 인 이유는 메시지가 통화보다 훨씬 짧아서다. 더 길면 대개 붙여 넣은 여러 건이다.
+TASKS = {
+    "voice": {"instruction": INSTRUCTION, "max_text_tokens": MAX_TEXT_TOKENS,
+              "train": "binary_train", "val": "binary_val"},
+    "sms": {"instruction": "위 메시지가 사기(스미싱·메신저피싱)인지 판단하라. 예 또는 아니오로만 답하라.",
+            "max_text_tokens": 512,
+            "train": "sms_train", "val": "sms_val"},
+}
 
-def contract():
+
+def task_of(name):
+    if name not in TASKS:
+        raise SystemExit(f"모르는 태스크 '{name}'. 가능한 값: {', '.join(TASKS)}")
+    return TASKS[name]
+
+
+def contract(task="voice"):
     """어댑터와 함께 저장할 프롬프트 계약.
 
     학습 때와 추론 때 프롬프트가 한 글자라도 다르면 **에러 없이 확률만 조용히 틀어진다.**
@@ -46,18 +65,19 @@ def contract():
     파일로 고정한다. 어댑터 폴더는 이걸로 자기완결이 된다 — chat_template.jinja(토크나이저)와
     calibration.json(온도)은 이미 같은 폴더에 저장되고 있다.
     """
+    t = task_of(task)
     return {
         "base_model": DEFAULT_MODEL,
-        "instruction": INSTRUCTION,
-        "max_text_tokens": MAX_TEXT_TOKENS,
+        "instruction": t["instruction"],
+        "max_text_tokens": t["max_text_tokens"],
         "yes": YES,
         "no": NO,
     }
 
 
-def save_contract(directory):
+def save_contract(directory, task="voice"):
     path = Path(directory) / "prompt.json"
-    path.write_text(json.dumps(contract(), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(contract(task), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     return path
 
 
@@ -88,15 +108,19 @@ def chat_ids(tokenizer, content):
     return tokenizer.encode(rendered, add_special_tokens=False)
 
 
-def clip(tokenizer, text):
-    """전사본을 앞에서부터 MAX_TEXT_TOKENS 만큼만 남긴다."""
-    ids = tokenizer.encode(text, add_special_tokens=False)[:MAX_TEXT_TOKENS]
+def clip(tokenizer, text, task="voice"):
+    """입력을 앞에서부터 태스크 상한만큼만 남긴다."""
+    ids = tokenizer.encode(text, add_special_tokens=False)[:task_of(task)["max_text_tokens"]]
     return tokenizer.decode(ids)
 
 
-def build_prompt(tokenizer, text):
-    """판정용 프롬프트. 학습과 추론이 반드시 이걸 같이 써야 한다."""
-    return chat_ids(tokenizer, f"{clip(tokenizer, text)}\n\n{INSTRUCTION}")
+def build_prompt(tokenizer, text, task="voice"):
+    """판정용 프롬프트. 학습과 추론이 반드시 이걸 같이 써야 한다.
+
+    서버(`Detection-Server/src/engine.py` `Task.prompt_ids`)가 prompt.json 에서 재구성하는
+    순서와 같다 — 자른 본문, 빈 줄 두 개, 지시문.
+    """
+    return chat_ids(tokenizer, f"{clip(tokenizer, text, task)}\n\n{task_of(task)['instruction']}")
 
 
 def load_rows(name):
@@ -188,8 +212,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="프롬프트 계약을 어댑터 폴더에 쓴다")
     parser.add_argument("--write-contract", metavar="DIR", required=True)
-    target = Path(parser.parse_args().write_contract)
+    parser.add_argument("--task", default="voice", choices=list(TASKS))
+    args = parser.parse_args()
+    target = Path(args.write_contract)
     if not target.is_dir():
         raise SystemExit(f"{target} 폴더가 없습니다. 어댑터를 먼저 내려받으세요.")
-    print(f"계약 저장 → {save_contract(target)}")
-    print(json.dumps(contract(), ensure_ascii=False, indent=1))
+    print(f"계약 저장 → {save_contract(target, args.task)}")
+    print(json.dumps(contract(args.task), ensure_ascii=False, indent=1))

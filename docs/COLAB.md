@@ -237,3 +237,64 @@ calibration.json                      온도. infer.py 와 서버가 읽는다
 | `loss` 가 0.69에서 안 내려감 | 학습률·데이터 문제 | 정답 토큰 id가 서로 다른지 로그 확인 |
 | 세션이 끊김 | 90분 유휴 | `--out` 이 드라이브인지 확인 후 8번부터 다시 |
 | `No module named 'common'` | 폴더 이동 안 됨 | 6번 `%cd` 다시 실행 |
+
+
+---
+
+# 문자 어댑터 — 5셀이면 끝난다
+
+통화와 절차가 같은데 **훨씬 짧다.** 입력이 512 토큰 이하라 T4 에서 134스텝이 10~15분이다.
+`--task sms` 하나가 다르다.
+
+**올릴 것** — 맥에서 `python3 src/build_sms_set.py` 를 돌린 뒤 저장소 루트의 `colab_upload/`
+폴더(또는 `colab_upload_sms.zip`)를 드라이브 `Voice-Detection/` 에 올린다. 안에 이게 있다.
+
+```
+src/common.py  src/train_lora.py  src/evaluate.py
+finetune/sms_train.jsonl  finetune/sms_val.jsonl
+```
+
+### 셀 1 — GPU 확인 (런타임 → 런타임 유형 변경 → T4 를 먼저 골랐어야 한다)
+
+```python
+!nvidia-smi
+```
+
+### 셀 2 — 설치 + 드라이브
+
+```python
+!pip install -q -U "transformers>=4.50" peft bitsandbytes accelerate
+from google.colab import drive
+drive.mount('/content/drive')
+%cd /content/drive/MyDrive/Voice-Detection
+!ls src finetune
+```
+
+### 셀 3 — 학습
+
+```python
+!python src/train_lora.py --task sms --epochs 2 --batch 4 \
+    --out /content/drive/MyDrive/Voice-Detection/adapter-sms
+```
+
+`loss` 가 0.69 근처에서 시작해 0.1 아래로 떨어지면 정상이다. 끝나면
+`어댑터 저장 완료 → …/adapter-sms` 가 찍힌다.
+
+### 셀 4 — Colab 에서는 온도를 **저장하지 않는다**
+
+```python
+!python src/evaluate.py --task sms --adapter /content/drive/MyDrive/Voice-Detection/adapter-sms --no-save
+```
+
+AUROC 와 신뢰도 표만 본다. 온도는 저장하지 않는다 — 문자 어댑터는 **맥 bf16 서버**가 서빙하는데
+Colab 은 4bit 라 로짓이 다르고, 온도는 서빙 환경의 로짓에 맞춰야 하기 때문이다.
+
+### 셀 5 — 없음. 드라이브에서 `adapter-sms/` 폴더를 내려받아 맥의 저장소 루트에 둔다
+
+그 다음은 맥에서(서버 venv 로, 2분):
+
+```bash
+../Detection-Server/.venv/bin/python src/evaluate.py --task sms --adapter adapter-sms \
+    --model unsloth/gemma-4-E2B-it            # 여기서 calibration.json 이 저장된다
+rsync -a --exclude 'checkpoint-*' adapter-sms/ ../Detection-Server/adapters/sms/
+```

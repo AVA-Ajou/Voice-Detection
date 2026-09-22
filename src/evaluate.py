@@ -19,19 +19,19 @@ import common
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def cache_path(adapter, prefix):
+def cache_path(adapter, prefix, task="voice"):
     """어댑터와 자른 길이마다 캐시를 따로 둔다.
 
     예전에는 파일 이름이 하나뿐이라 다른 어댑터를 평가하면 앞의 것을 덮어썼고, `--reuse`가
     **엉뚱한 모델의 로짓을 조용히 되썼다.** 지표만 보고는 알아챌 방법이 없는 종류의 사고다.
     """
     tag = "" if prefix is None else f"_p{prefix}"
-    return ROOT / "finetune" / f"val_logits_{Path(adapter).name}{tag}.json"
+    return ROOT / "finetune" / f"val_logits_{task}_{Path(adapter).name}{tag}.json"
 
 
 # ────────────────────────────────────────────── 로짓 뽑기
 
-def collect(model_id, adapter, prefix=None):
+def collect(model_id, adapter, prefix=None, task="voice"):
     """검증셋 전체의 로짓 차이(예 - 아니오). 온도와 무관한 원본 값이라 한 번만 구한다.
 
     [prefix]는 전사본을 앞에서부터 몇 **글자**만 남길지다. 학습·검증은 통화 전체를 보지만
@@ -42,12 +42,12 @@ def collect(model_id, adapter, prefix=None):
 
     tokenizer, model = common.load_model(model_id, adapter=adapter)
     yes, no = common.answer_ids(tokenizer)
-    rows = common.load_rows("binary_val")
+    rows = common.load_rows(common.task_of(task)["val"])
 
     out = []
     for i, row in enumerate(rows, 1):
         text = row["text"][:prefix] if prefix else row["text"]
-        ids = torch.tensor([common.build_prompt(tokenizer, text)]).to(model.device)
+        ids = torch.tensor([common.build_prompt(tokenizer, text, task)]).to(model.device)
         with torch.no_grad():
             logits = model(input_ids=ids).logits[0, -1]
         out.append({"id": row["id"], "label": row["label"],
@@ -195,14 +195,16 @@ if __name__ == "__main__":
                         help="전사본 앞 N글자만 보고 판정 (실전 조건 재현)")
     parser.add_argument("--no-save", action="store_true",
                         help="온도를 저장하지 않는다. 맥에서 진단용으로 돌릴 때 쓴다")
+    parser.add_argument("--task", default="voice", choices=list(common.TASKS),
+                        help="sms 는 finetune/sms_val 로 잰다")
     args = parser.parse_args()
 
-    cache = cache_path(args.adapter, args.prefix)
+    cache = cache_path(args.adapter, args.prefix, args.task)
     if args.reuse and cache.exists():
         rows = json.loads(cache.read_text())
         print(f"저장된 로짓 사용 — {cache}")
     else:
-        rows = collect(args.model, args.adapter, args.prefix)
+        rows = collect(args.model, args.adapter, args.prefix, args.task)
         cache.write_text(json.dumps(rows, ensure_ascii=False))
 
     ph = sum(r["label"] for r in rows)
