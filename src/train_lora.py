@@ -20,9 +20,10 @@ ROOT = Path(__file__).resolve().parents[1]
 class Dataset:
     """프롬프트 + 정답 토큰 하나. 정답 자리를 뺀 나머지는 -100으로 가린다."""
 
-    def __init__(self, rows, tokenizer):
+    def __init__(self, rows, tokenizer, task="voice"):
         self.rows = rows
         self.tokenizer = tokenizer
+        self.task = task
         self.yes, self.no = common.answer_ids(tokenizer)
 
     def __len__(self):
@@ -30,7 +31,7 @@ class Dataset:
 
     def __getitem__(self, i):
         row = self.rows[i]
-        prompt = common.build_prompt(self.tokenizer, row["text"])
+        prompt = common.build_prompt(self.tokenizer, row["text"], self.task)
         answer = self.yes if row["label"] == 1 else self.no
         return {
             "input_ids": prompt + [answer],
@@ -97,8 +98,9 @@ def main(args):
     ))
     model.print_trainable_parameters()
 
-    train = Dataset(common.load_rows("binary_train"), tokenizer)
-    val = Dataset(common.load_rows("binary_val"), tokenizer)
+    names = common.task_of(args.task)
+    train = Dataset(common.load_rows(names["train"]), tokenizer, args.task)
+    val = Dataset(common.load_rows(names["val"]), tokenizer, args.task)
     pad_id = tokenizer.pad_token_id or tokenizer.eos_token_id
 
     # 유효 배치는 8로 고정하고, 실제 배치와 누적으로 나눠 갖는다. 배치를 키울수록
@@ -107,9 +109,14 @@ def main(args):
     accum = max(1, 8 // args.batch)
     steps_per_epoch = max(1, len(train) // (args.batch * accum))
     total_steps = max(1, int(steps_per_epoch * args.epochs))
-    bf16 = torch.cuda.is_bf16_supported()
+    # 혼합 정밀도 플래그는 CUDA 에서만 켠다. 맥(MPS)은 가중치를 이미 bf16 으로 올렸고
+    # `fp16=True` 를 주면 Trainer 가 "GPU 가 아니다"라며 거부한다 — 이 스크립트가 맥에서도
+    # 돌게 된 것은 문자 어댑터부터다(짧은 입력이라 24GB 안에 든다).
+    cuda = torch.cuda.is_available()
+    bf16 = cuda and torch.cuda.is_bf16_supported()
+    fp16 = cuda and not bf16
     print(f"배치 {args.batch} × 누적 {accum} → 에폭당 {steps_per_epoch}스텝, "
-          f"총 {total_steps}스텝")
+          f"총 {total_steps}스텝   ({'CUDA' if cuda else 'MPS/CPU'})")
 
     trainer = Trainer(
         model=model,
@@ -130,7 +137,7 @@ def main(args):
             save_strategy="epoch",
             save_total_limit=2,
             bf16=bf16,
-            fp16=not bf16,
+            fp16=fp16,
             gradient_checkpointing=True,
             report_to=[],
         ))),
@@ -143,7 +150,7 @@ def main(args):
     model.save_pretrained(args.out)
     tokenizer.save_pretrained(args.out)
     # 추론 서버는 별도 저장소라 이 코드를 못 본다. 프롬프트를 파일로 함께 남긴다.
-    common.save_contract(args.out)
+    common.save_contract(args.out, args.task)
     print(f"\n어댑터 저장 완료 → {args.out}")
     print("  prompt.json 도 함께 저장했습니다 — 서버가 이걸 읽어 프롬프트를 재구성합니다.")
 
@@ -157,4 +164,6 @@ if __name__ == "__main__":
     parser.add_argument("--batch", type=int, default=2, help="메모리가 터지면 1로")
     parser.add_argument("--attn", default="sdpa", choices=["sdpa", "eager"])
     parser.add_argument("--rank", type=int, default=16)
+    parser.add_argument("--task", default="voice", choices=list(common.TASKS),
+                        help="sms 는 finetune/sms_train·sms_val 을 읽고 문자 지시문으로 학습한다")
     main(parser.parse_args())

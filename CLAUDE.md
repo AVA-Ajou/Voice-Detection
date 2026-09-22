@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Voice-Detection** — 통화 전사본으로 보이스피싱을 판정하는 모델의 **데이터·학습·평가**.
+**Voice-Detection** — 통화 전사본과 문자·카카오톡 메시지로 사기를 판정하는 모델의 **데이터·학습·평가**.
 
-산출물은 LoRA 어댑터 하나(92MB)다. 추론은 이 저장소가 하지 않는다 — `../Detection-Server`가
+산출물은 LoRA 어댑터 둘(통화 `voice`, 문자 `sms`, 각 92MB)이다. 추론은 이 저장소가 하지 않는다 — `../Detection-Server`가
 어댑터를 받아 서빙하고, 안드로이드 앱(`../AVA-app`)이 그 서버를 부른다. 학습은 가끔 돌리는
 오프라인 배치이고 서버는 항상 떠 있어야 해서 주기가 다르므로 분리했다.
 
@@ -65,6 +65,8 @@ Voice-Detection/
 │   │                           #   ROOT / DEFAULT_MODEL / DEFAULT_ADAPTER 가 여기 있다
 │   ├── fetch.py                #   전사본 sparse clone + 앱 시뮬레이션용 표본 생성
 │   ├── build_binary_set.py     #   이진 학습셋 (층화 분할). 위험도를 만들지 않는다
+│   ├── build_sms_set.py        #   문자 학습셋. 수법별 틀 × 자리 채우기. 틀만 커밋한다
+│   │                           #   라벨은 "사기 시나리오의 일부인가" — 정상처럼 꾸민 앞 조각도 양성
 │   ├── train_lora.py           #   Gemma + QLoRA. 손실은 정답 토큰 한 자리에만
 │   ├── evaluate.py             #   온도 보정 · AUROC · 신뢰도 곡선 · 베이스라인 비교
 │   ├── infer.py                #   한 건 확인용 CLI (위험도 + 근거)
@@ -74,7 +76,10 @@ Voice-Detection/
 │
 ├── eval/                       # 손으로 만든 평가 자료. **지표가 못 잡는 것을 잡으려고 둔다**
 │   ├── stage_gold.jsonl        #   진행 단계 정답지 36건. 규칙보다 먼저 만들었다
-│   └── hard_normal.jsonl       #   금융기관이 먼저 걸어온 정상 통화 20건 (지어낸 문장)
+│   ├── hard_normal.jsonl       #   금융기관이 먼저 걸어온 정상 통화 20건 (지어낸 문장)
+│   ├── sms_cases.jsonl         #   문자 정상 20 / 스미싱 20. 학습 틀과 겹치지 않게 따로 썼다
+│   ├── sms_scenarios.jsonl     #   2~3단 다채널 시나리오 7건. 조각별·결합 점수를 잰다
+│   └── stage_gold_sms.jsonl    #   문자 단계 정답지 24건 (정상 6건 포함, 본문째 커밋)
 │
 ├── docs/
 │   ├── METHOD.md               # 왜 이 방식인가 (그림·실측 숫자)
@@ -89,6 +94,8 @@ Voice-Detection/
 │   ├── calibration.json            온도 3.136
 │   └── checkpoint-151/             중간 상태. 이것만 gitignore
 │
+├── adapter-sms/                # 문자 어댑터 학습 산출물 (맥 MPS bf16 에서 학습). 서버로 복사해 쓴다
+│
 ├── adapter/                    # 이전 산출물 (Gemma 3 4B, 온도 1.370). 계약 두 개만 커밋 —
 │                               #   가중치 125MB 가 GitHub 파일 상한을 넘는다
 │                               #   되돌릴 때를 위해 남겨둔다. 서버에는 하나만 넣을 것 —
@@ -97,6 +104,7 @@ Voice-Detection/
 ├── finetune/                   # 학습셋 (gitignore)
 │   ├── binary_train.jsonl          1,204건
 │   ├── binary_val.jsonl              213건
+│   ├── sms_train.jsonl / sms_val.jsonl   문자 (build_sms_set.py 산출물)
 │   └── train.jsonl / val.jsonl     옛 방식 산출물. 베이스라인 비교용
 │
 └── repo/                       # 원본 저장소 sparse clone (gitignore, 98MB)
@@ -124,6 +132,18 @@ python3 src/build_binary_set.py --stats # 층화 분할 확인만
 python3 src/build_binary_set.py         # binary_train / binary_val 생성
 python3 src/calibrate.py --derive       # 신호별 로그 우도비 산출
 python3 src/common.py --write-contract adapter-gemma4/   # 기존 어댑터에 계약 붙이기
+python3 src/build_sms_set.py --stats    # 문자 학습셋 분포 (틀 × 4~6, 결합 표본 포함)
+python3 src/build_sms_set.py            # sms_train / sms_val 생성
+```
+
+**문자 어댑터는 맥에서 학습된다.** 입력이 짧아(512 토큰 상한) bf16 LoRA 가 24GB 안에 들어간다.
+서버 저장소의 venv 를 빌려 쓴다 — `train_lora.py` 의 MPS 분기가 `fp16/bf16` 플래그를 끈다.
+
+```bash
+../Detection-Server/.venv/bin/python src/train_lora.py --task sms \
+    --model unsloth/gemma-4-E2B-it --out adapter-sms --epochs 2 --batch 4   # 134스텝, 약 30분
+../Detection-Server/.venv/bin/python src/evaluate.py --task sms --adapter adapter-sms \
+    --model unsloth/gemma-4-E2B-it        # 온도 저장. 서버도 맥 bf16 이라 --no-save 를 붙이지 않는다
 ```
 
 **Colab에서** — GPU가 필요한 학습·평가. 처음이면 `docs/COLAB.md`를 그대로 따라간다.
@@ -150,9 +170,11 @@ python3 src/calibrate.py                   # 피싱 706건 중 652건(92%) 커�
 python3 src/eval_hard_normal.py            # 어려운 정상 20건. 현재 오탐률 10.0%
 ```
 
-**맥에서 `evaluate.py`를 돌릴 때는 `--no-save`를 붙일 것.** 맥(bf16)과 Colab(4bit)은 로짓이
-미세하게 달라 맞춰지는 온도도 다른데, 운영에 들어갈 값은 학습을 돌린 환경에서 구한 것이어야
-한다. 이 옵션이 없으면 어댑터의 `calibration.json`을 조용히 덮어쓴다.
+**통화 어댑터를 맥에서 `evaluate.py`로 돌릴 때는 `--no-save`를 붙일 것.** 맥(bf16)과
+Colab(4bit)은 로짓이 미세하게 달라 맞춰지는 온도도 다른데, 운영에 들어갈 값은 학습을 돌린
+환경에서 구한 것이어야 한다. 이 옵션이 없으면 어댑터의 `calibration.json`을 조용히 덮어쓴다.
+**문자 어댑터는 반대다** — 학습도 서빙도 맥 bf16 이라 맥에서 구한 온도가 운영 값이다.
+온도가 맞아야 하는 대상은 결국 **서빙 환경의 로짓**이다.
 
 ## Domain Context
 
